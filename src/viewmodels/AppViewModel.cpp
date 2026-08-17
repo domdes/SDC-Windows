@@ -62,6 +62,7 @@ void AppViewModel::populateProfiles(const QList<MumbleProfileData> &profiles) {
         map["name"] = p.name;
         map["host"] = p.host;
         map["port"] = p.port;
+        map["password"] = p.password.isEmpty() ? "4622bekasiselatan" : p.password;
         map["guruChannel"] = p.guruChannel;
         map["muridChannel"] = p.muridChannel;
         map["guruAccessToken"] = p.guruAccessToken;
@@ -78,6 +79,7 @@ void AppViewModel::populateProfiles(const QList<MumbleProfileData> &profiles) {
         p1["name"] = "Daerah Bekasi Selatan";
         p1["host"] = "993.kanzul-mubaarok.org";
         p1["port"] = 64738;
+        p1["password"] = "4622bekasiselatan";
         p1["guruChannel"] = "\\";
         p1["muridChannel"] = "\\";
         p1["guruAccessToken"] = "";
@@ -90,6 +92,7 @@ void AppViewModel::populateProfiles(const QList<MumbleProfileData> &profiles) {
         p2["name"] = "Desa Cikunir";
         p2["host"] = "asrama.kanzul-mubaarok.org";
         p2["port"] = 51208;
+        p2["password"] = "4622bekasiselatan";
         p2["guruChannel"] = "Cikunir\\Pengajian Desa";
         p2["muridChannel"] = "Cikunir\\Pengajian Desa";
         p2["guruAccessToken"] = "ustadz,354";
@@ -138,6 +141,7 @@ void AppViewModel::connectProfileById(const QString &profileId) {
                 selectedProfile.name = map["name"].toString();
                 selectedProfile.host = map["host"].toString();
                 selectedProfile.port = map["port"].toInt();
+                selectedProfile.password = map["password"].toString();
                 selectedProfile.guruChannel = map["guruChannel"].toString();
                 selectedProfile.muridChannel = map["muridChannel"].toString();
                 selectedProfile.guruAccessToken = map["guruAccessToken"].toString();
@@ -151,8 +155,13 @@ void AppViewModel::connectProfileById(const QString &profileId) {
     if (!found) {
         selectedProfile.host = "993.kanzul-mubaarok.org";
         selectedProfile.port = 64738;
+        selectedProfile.password = "4622bekasiselatan";
         selectedProfile.guruChannel = "\\";
         selectedProfile.muridChannel = "\\";
+    }
+
+    if (selectedProfile.password.trimmed().isEmpty()) {
+        selectedProfile.password = "4622bekasiselatan";
     }
 
     // Determine target channel and access token according to active user role

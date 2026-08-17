@@ -111,7 +111,7 @@ void MumbleClientEngine::connectToServer(const QString &host, int port, const QS
     m_lastPort = port;
     m_baseUsername = username.isEmpty() ? "Ken_Narottama" : username;
     m_currentUsername = m_baseUsername;
-    m_serverPassword = password;
+    m_serverPassword = password.trimmed().isEmpty() ? "4622bekasiselatan" : password.trimmed();
     m_suffixIndex = 0;
     m_isIntentionalDisconnect = false;
     m_autoJoinPending = true;
@@ -122,7 +122,10 @@ void MumbleClientEngine::connectToServer(const QString &host, int port, const QS
     m_mySessionId = -1;
     m_readBuffer.clear();
 
-    emit logEmitted(QString("[MUMBLE ENGINE] Connecting to %1:%2 as '%3'...").arg(host).arg(port).arg(m_currentUsername));
+    emit logEmitted(QString("[MUMBLE ENGINE] Connecting to %1:%2 as '%3' (Pass: %4, Tokens: %5)...")
+                    .arg(host).arg(port).arg(m_currentUsername)
+                    .arg(m_serverPassword.isEmpty() ? "None" : "Set")
+                    .arg(m_accessTokens.join(",")));
     m_socket->abort();
     m_socket->setPeerVerifyMode(QSslSocket::VerifyNone);
     m_socket->connectToHostEncrypted(host, static_cast<quint16>(port));
@@ -327,9 +330,22 @@ void MumbleClientEngine::parseReject(const QByteArray &payload) {
         else if (wireType == 5) reader.skip(4);
     }
 
-    emit logEmitted(QString("[REJECT] Type: %1, Reason: %2").arg(rejectType).arg(reason));
+    QString rejectDesc;
+    switch (rejectType) {
+    case 1: rejectDesc = "Versi client tidak cocok (Wrong Version)"; break;
+    case 2: rejectDesc = "Username tidak valid (Invalid Username)"; break;
+    case 3: rejectDesc = "Password user salah (Wrong User Password)"; break;
+    case 4: rejectDesc = "Password server salah (Invalid Server Password)"; break;
+    case 5: rejectDesc = "Username sudah dipakai (Username in Use)"; break;
+    case 6: rejectDesc = "Server penuh (Server Full)"; break;
+    case 7: rejectDesc = "Sertifikat diperlukan (No Certificate)"; break;
+    case 8: rejectDesc = "Autentikasi gagal (Authenticator Fail)"; break;
+    default: rejectDesc = QString("Kode #%1").arg(rejectType); break;
+    }
 
-    if (rejectType == 1 || rejectType == 2 || rejectType == 3 ||
+    emit logEmitted(QString("[REJECT] %1. Alasan: %2").arg(rejectDesc).arg(reason.isEmpty() ? "-" : reason));
+
+    if (rejectType == 1 || rejectType == 2 || rejectType == 3 || rejectType == 5 ||
         reason.contains("name", Qt::CaseInsensitive) ||
         reason.contains("user", Qt::CaseInsensitive) ||
         reason.contains("in use", Qt::CaseInsensitive) ||
