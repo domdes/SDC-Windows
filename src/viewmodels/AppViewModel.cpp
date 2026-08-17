@@ -8,13 +8,17 @@ AppViewModel::AppViewModel(QObject *parent)
     : QObject(parent) {
     m_voiceViewModel = new VoiceViewModel(&m_mumbleEngine, this);
 
-    connect(&m_oauthService, &OAuthService::loginSuccess, this, [this](const QString &accessToken, const QString &refreshToken) {
-        Q_UNUSED(accessToken);
+    connect(&m_oauthService, &OAuthService::loginSuccess, this, [this](const QString &accessToken, const QString &refreshToken, const QString &userEmail) {
         Q_UNUSED(refreshToken);
-        QString email = "ken.narottama@gmail.com";
-        m_activeUserEmail = email;
-        EncryptedStorage::saveSecureString("user_email", email);
-        m_portalService.fetchUserProfile(email);
+        qDebug() << "[APP VIEWMODEL] Login Google success for email:" << userEmail;
+        m_activeUserEmail = userEmail;
+        EncryptedStorage::saveSecureString("user_email", userEmail);
+        EncryptedStorage::saveSecureString("access_token", accessToken);
+        m_portalService.fetchUserProfile(userEmail);
+    });
+
+    connect(&m_oauthService, &OAuthService::loginFailed, this, [this](const QString &errorMsg) {
+        qWarning() << "[APP VIEWMODEL] OAuth Login failed:" << errorMsg;
     });
 
     connect(&m_portalService, &PortalApiService::profileFetched, this, [this](const UserProfileData &data) {
@@ -42,11 +46,12 @@ AppViewModel::AppViewModel(QObject *parent)
 void AppViewModel::autoLoginOrShowLogin() {
     QString savedEmail = EncryptedStorage::readSecureString("user_email");
     if (savedEmail.trimmed().isEmpty()) {
-        savedEmail = "ken.narottama@gmail.com";
-        EncryptedStorage::saveSecureString("user_email", savedEmail);
+        m_currentView = "LoginView";
+        emit currentViewChanged();
+        return;
     }
-    m_activeUserEmail = savedEmail;
-    m_portalService.fetchUserProfile(savedEmail);
+    m_activeUserEmail = savedEmail.trimmed();
+    m_portalService.fetchUserProfile(savedEmail.trimmed());
 }
 
 void AppViewModel::populateProfiles(const QList<MumbleProfileData> &profiles) {

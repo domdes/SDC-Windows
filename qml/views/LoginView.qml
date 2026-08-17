@@ -53,93 +53,99 @@ Item {
 
         // Center Login Card
         Rectangle {
-            width: parent.width - 40
-            height: 340
+            width: Math.min(parent.width - 40, 420)
+            height: 320
             radius: 20
             color: "#FFFFFF"
             anchors.centerIn: parent
 
+            // Subtle Drop Shadow
+            Rectangle {
+                anchors.fill: parent
+                anchors.topMargin: 4
+                radius: 20
+                color: "#000000"
+                opacity: 0.05
+                z: -1
+            }
+
             Column {
                 anchors.centerIn: parent
                 spacing: 14
-                width: parent.width - 40
+                width: parent.width - 48
+
+                // Logo Asyuhada
+                Image {
+                    source: "qrc:/qml/assets/logo_asyuhada.png"
+                    width: 64
+                    height: 64
+                    fillMode: Image.PreserveAspectFit
+                    anchors.horizontalCenter: parent.horizontalCenter
+                }
 
                 Text {
                     text: "Selamat Datang"
-                    font.pixelSize: 26
+                    font.pixelSize: 24
                     font.bold: true
-                    color: "#2C5E53"
+                    color: "#065F46"
                     anchors.horizontalCenter: parent.horizontalCenter
                 }
 
                 Text {
                     text: "Portal Yayasan Asyuhada Jaya Bekasi"
-                    font.pixelSize: 15
-                    color: "#555555"
+                    font.pixelSize: 14
+                    color: "#6B7280"
                     anchors.horizontalCenter: parent.horizontalCenter
                 }
 
-                Item { width: 1; height: 6 }
+                Item { width: 1; height: 10 }
 
-                // Google Login Button (Primary)
+                // Google Login Button (Aesthetic, White Pill with Google Logo)
                 Button {
+                    id: googleLoginBtn
                     width: parent.width
-                    height: 48
+                    height: 50
                     anchors.horizontalCenter: parent.horizontalCenter
                     onClicked: appViewModel.startGoogleLogin()
 
+                    hoverEnabled: true
+
                     background: Rectangle {
-                        color: "#047857"
-                        radius: 24
+                        color: googleLoginBtn.pressed ? "#F3F4F6" : (googleLoginBtn.hovered ? "#F9FAFB" : "#FFFFFF")
+                        border.color: googleLoginBtn.hovered ? "#9CA3AF" : "#D1D5DB"
+                        border.width: 1.5
+                        radius: 25
+
+                        Behavior on color { ColorAnimation { duration: 150 } }
+                        Behavior on border.color { ColorAnimation { duration: 150 } }
                     }
 
                     contentItem: Row {
                         anchors.centerIn: parent
-                        spacing: 10
+                        spacing: 12
 
-                        Text {
-                            text: "🌐"
-                            font.pixelSize: 18
+                        Image {
+                            source: "qrc:/qml/assets/google_logo.png"
+                            width: 22
+                            height: 22
+                            fillMode: Image.PreserveAspectFit
+                            anchors.verticalCenter: parent.verticalCenter
+                            smooth: true
                         }
 
                         Text {
-                            text: "Lanjutkan dengan Google"
+                            text: "Login dengan Google"
                             font.pixelSize: 15
                             font.bold: true
-                            color: "#FFFFFF"
+                            color: "#1F2937"
+                            anchors.verticalCenter: parent.verticalCenter
                         }
                     }
-                }
 
-                // Direct Login Button (Secondary / Fallback)
-                Button {
-                    width: parent.width
-                    height: 44
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    onClicked: appViewModel.handleUriScheme("sdcyajb://oauth?code=direct_verified")
-
-                    background: Rectangle {
-                        color: "#F3F4F6"
-                        border.color: "#D1D5DB"
-                        border.width: 1
-                        radius: 22
-                    }
-
-                    contentItem: Row {
-                        anchors.centerIn: parent
-                        spacing: 8
-
-                        Text {
-                            text: "⚡"
-                            font.pixelSize: 15
-                        }
-
-                        Text {
-                            text: "Masuk SDC Pengguna Terverifikasi"
-                            font.pixelSize: 13
-                            font.bold: true
-                            color: "#374151"
-                        }
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: appViewModel.startGoogleLogin()
                     }
                 }
             }
@@ -155,7 +161,7 @@ Item {
             Column {
                 anchors.centerIn: parent
                 spacing: 6
-                width: parent.width - 40
+                width: Math.min(parent.width - 40, 500)
 
                 Text {
                     text: "Yayasan Asyuhada Jaya Bekasi"

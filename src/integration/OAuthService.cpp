@@ -11,6 +11,8 @@
 #include <QDir>
 #include <QDebug>
 
+static const char *SupabaseAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZheXRob2NpaGx5em16cm53d2tzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxNTYyOTcsImV4cCI6MjA5MTczMjI5N30.NurwRqdxe_oqnb8dNBVk8fT0P4vFxZBo1yimvw23Bws";
+
 OAuthService::OAuthService(QObject *parent) : QObject(parent) {
     registerWindowsProtocol();
 
@@ -55,9 +57,9 @@ void OAuthService::startGoogleLogin() {
         m_tcpServer->close();
     }
 
-    // Start Local TCP Server on port 54321
+    // Start Local TCP Server on port 54321 (or fallback free port)
     if (!m_tcpServer->listen(QHostAddress::LocalHost, m_localPort)) {
-        m_tcpServer->listen(QHostAddress::LocalHost, 0); // fallback random free port
+        m_tcpServer->listen(QHostAddress::LocalHost, 0);
         m_localPort = m_tcpServer->serverPort();
     }
 
@@ -88,40 +90,71 @@ void OAuthService::onNewTcpConnection() {
         QString requestStr = QString::fromUtf8(requestData);
 
         QString authCode;
-        if (requestStr.contains("GET /") || requestStr.contains("code=")) {
+        QString accessToken;
+        QString refreshToken;
+
+        // Check if query contains code
+        if (requestStr.contains("code=")) {
             int codeIdx = requestStr.indexOf("code=");
-            if (codeIdx != -1) {
-                int endIdx = requestStr.indexOf(" ", codeIdx);
-                if (endIdx == -1) endIdx = requestStr.indexOf("&", codeIdx);
-                if (endIdx == -1) endIdx = requestStr.indexOf("\r\n", codeIdx);
-                authCode = requestStr.mid(codeIdx + 5, endIdx - (codeIdx + 5));
-            }
+            int endIdx = requestStr.indexOf(" ", codeIdx);
+            if (endIdx == -1) endIdx = requestStr.indexOf("&", codeIdx);
+            if (endIdx == -1) endIdx = requestStr.indexOf("\r\n", codeIdx);
+            authCode = requestStr.mid(codeIdx + 5, endIdx - (codeIdx + 5));
         }
 
-        // Return HTML response to close browser tab
+        // Check if query contains access_token directly (e.g. from /submit_token)
+        if (requestStr.contains("access_token=")) {
+            int tokIdx = requestStr.indexOf("access_token=");
+            int endIdx = requestStr.indexOf(" ", tokIdx);
+            if (endIdx == -1) endIdx = requestStr.indexOf("&", tokIdx);
+            if (endIdx == -1) endIdx = requestStr.indexOf("\r\n", tokIdx);
+            accessToken = requestStr.mid(tokIdx + 13, endIdx - (tokIdx + 13));
+        }
+
+        if (requestStr.contains("refresh_token=")) {
+            int tokIdx = requestStr.indexOf("refresh_token=");
+            int endIdx = requestStr.indexOf(" ", tokIdx);
+            if (endIdx == -1) endIdx = requestStr.indexOf("&", tokIdx);
+            if (endIdx == -1) endIdx = requestStr.indexOf("\r\n", tokIdx);
+            refreshToken = requestStr.mid(tokIdx + 14, endIdx - (tokIdx + 14));
+        }
+
+        // Return HTML response that captures hash fragment (#access_token=...) if present
         QString htmlResponse =
             "HTTP/1.1 200 OK\r\n"
             "Content-Type: text/html; charset=utf-8\r\n"
             "Connection: close\r\n\r\n"
-            "<!DOCTYPE html><html><head><title>SDC YAJB - Login Success</title></head>"
-            "<body style='font-family:sans-serif;text-align:center;padding-top:60px;background:#0F172A;color:#FFFFFF;'>"
-            "<div style='background:#1E293B;padding:40px;border-radius:20px;display:inline-block;'>"
-            "<h1 style='color:#34D399;margin-bottom:10px;'>🌐 Login Google Berhasil!</h1>"
-            "<p style='color:#9CA3AF;font-size:16px;'>Otentikasi berhasil terverifikasi. Kembali ke aplikasi SDC YAJB Desktop...</p>"
+            "<!DOCTYPE html><html><head><title>SDC YAJB - Login Google</title>"
+            "<style>"
+            "body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0F172A;color:#FFFFFF;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;}"
+            ".card{background:#1E293B;padding:40px 48px;border-radius:24px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);text-align:center;max-width:440px;border:1px solid #334155;}"
+            "h1{color:#10B981;font-size:22px;margin:0 0 12px 0;}"
+            "p{color:#94A3B8;font-size:15px;line-height:1.5;margin:0 0 20px 0;}"
+            ".badge{display:inline-block;padding:8px 16px;background:#065F46;color:#6EE7B7;border-radius:12px;font-size:13px;font-weight:600;}"
+            "</style></head>"
+            "<body><div class='card'>"
+            "<h1>🌿 Login Google Berhasil</h1>"
+            "<p>Autentikasi akun Google Anda telah terverifikasi.<br>Anda dapat menutup tab browser ini dan kembali ke aplikasi <b>SDC YAJB Desktop</b>.</p>"
+            "<div class='badge'>✓ Terhubung ke SDC Desktop</div>"
             "</div>"
-            "<script>setTimeout(function(){ window.close(); }, 2000);</script>"
-            "</body></html>";
+            "<script>"
+            "if(window.location.hash && window.location.hash.length > 1){"
+            "  var hash = window.location.hash.substring(1);"
+            "  fetch('/submit_token?' + hash);"
+            "}"
+            "setTimeout(function(){ window.close(); }, 2500);"
+            "</script></body></html>";
 
         socket->write(htmlResponse.toUtf8());
         socket->flush();
         socket->disconnectFromHost();
 
-        if (!authCode.isEmpty()) {
-            qDebug() << "[OAUTH CALLBACK SUCCESS] Code received:" << authCode;
+        if (!accessToken.isEmpty()) {
+            qDebug() << "[OAUTH TOKEN RECEIVED] Directly fetching user profile...";
+            fetchUserEmail(accessToken, refreshToken);
+        } else if (!authCode.isEmpty()) {
+            qDebug() << "[OAUTH CALLBACK CODE RECEIVED]:" << authCode;
             exchangeAuthorizationCode(authCode);
-        } else {
-            // Simulated login fallback for local testing
-            exchangeAuthorizationCode("google_verified_code");
         }
     });
 }
@@ -130,7 +163,7 @@ void OAuthService::exchangeAuthorizationCode(const QString &authCode) {
     QUrl tokenUrl("https://faythocihlyzmzrnwwks.supabase.co/auth/v1/token?grant_type=pkce");
     QNetworkRequest request(tokenUrl);
     request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
-    request.setRawHeader("apikey", "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZheXRob2NpaGx5em16cm53d2tzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzYxNTYyOTcsImV4cCI6MjA5MTczMjI5N30.NurwRqdxe_oqnb8dNBVk8fT0P4vFxZBo1yimvw23Bws");
+    request.setRawHeader("apikey", SupabaseAnonKey);
 
     QJsonObject json;
     json["auth_code"] = authCode;
@@ -143,10 +176,45 @@ void OAuthService::exchangeAuthorizationCode(const QString &authCode) {
             QJsonObject res = QJsonDocument::fromJson(reply->readAll()).object();
             QString accessToken = res["access_token"].toString();
             QString refreshToken = res["refresh_token"].toString();
-            emit loginSuccess(accessToken, refreshToken);
+            QJsonObject userObj = res["user"].toObject();
+            QString email = userObj["email"].toString();
+
+            if (!email.isEmpty()) {
+                qDebug() << "[OAUTH SUCCESS] User email from token response:" << email;
+                emit loginSuccess(accessToken, refreshToken, email);
+            } else if (!accessToken.isEmpty()) {
+                fetchUserEmail(accessToken, refreshToken);
+            } else {
+                emit loginFailed("Respon token tidak valid");
+            }
         } else {
-            // Fallback for simulation / verified google token
-            emit loginSuccess("mock_access_token_google_verified", "mock_refresh_token_valid");
+            qWarning() << "[OAUTH TOKEN EXCHANGE ERROR]" << reply->errorString();
+            emit loginFailed(QString("Gagal menukar kode otorisasi: %1").arg(reply->errorString()));
+        }
+    });
+}
+
+void OAuthService::fetchUserEmail(const QString &accessToken, const QString &refreshToken) {
+    QUrl userUrl("https://faythocihlyzmzrnwwks.supabase.co/auth/v1/user");
+    QNetworkRequest request(userUrl);
+    request.setRawHeader("apikey", SupabaseAnonKey);
+    request.setRawHeader("Authorization", QString("Bearer %1").arg(accessToken).toUtf8());
+
+    QNetworkReply *reply = m_networkManager.get(request);
+    connect(reply, &QNetworkReply::finished, [this, reply, accessToken, refreshToken]() {
+        reply->deleteLater();
+        if (reply->error() == QNetworkReply::NoError) {
+            QJsonObject userObj = QJsonDocument::fromJson(reply->readAll()).object();
+            QString email = userObj["email"].toString().trimmed();
+            qDebug() << "[OAUTH USER FETCH SUCCESS] Authenticated email:" << email;
+            if (!email.isEmpty()) {
+                emit loginSuccess(accessToken, refreshToken, email);
+            } else {
+                emit loginFailed("Email akun Google tidak ditemukan.");
+            }
+        } else {
+            qWarning() << "[OAUTH USER FETCH ERROR]" << reply->errorString();
+            emit loginFailed("Gagal mengambil profil akun Google.");
         }
     });
 }

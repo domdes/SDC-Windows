@@ -12,5 +12,6 @@
         <file>qml/components/SettingsModal.qml</file>
         <file>qml/components/AddProfileModal.qml</file>
         <file>qml/assets/logo_asyuhada.png</file>
+        <file>qml/assets/google_logo.png</file>
     </qresource>
 </RCC>

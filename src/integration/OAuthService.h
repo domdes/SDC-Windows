@@ -18,9 +18,10 @@ public:
     void registerWindowsProtocol();
     void startGoogleLogin();
     void exchangeAuthorizationCode(const QString &authCode);
+    void fetchUserEmail(const QString &accessToken, const QString &refreshToken);
 
 signals:
-    void loginSuccess(const QString &accessToken, const QString &refreshToken);
+    void loginSuccess(const QString &accessToken, const QString &refreshToken, const QString &userEmail);
     void loginFailed(const QString &errorMsg);
 
 private slots:
