@@ -1,0 +1,25 @@
+# Build & Deployment artifacts
+build/
+build-*/
+dist-*/
+SDC-YAJB-Windows-*/
+*.zip
+*.exe
+*.dll
+*.obj
+*.o
+*.a
+*.lib
+*.pdb
+*.log
+app_debug.log
+
+# IDE & OS files
+.idea/
+.vscode/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.DS_Store
+Thumbs.db
