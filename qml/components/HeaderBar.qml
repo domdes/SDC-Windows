@@ -12,7 +12,7 @@ Rectangle {
     property bool showGear: false
     property bool showLogout: false
     property bool showBack: false
-    property bool showLog: true
+    property bool showLog: false
     property bool showAudioIcons: false
 
     signal backClicked()

@@ -14,7 +14,7 @@ Item {
             titleText: "SENKOM Digital Communication"
             showGear: true
             showLogout: true
-            showLog: true
+            showLog: false
             onLogClicked: mainWindow.toggleLogPanel()
             onGearClicked: settingsModal.open()
             onLogoutClicked: appViewModel.logout()

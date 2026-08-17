@@ -15,6 +15,7 @@ AppViewModel::AppViewModel(QObject *parent)
         EncryptedStorage::saveSecureString("user_email", userEmail);
         EncryptedStorage::saveSecureString("access_token", accessToken);
         m_portalService.fetchUserProfile(userEmail);
+        bringWindowToFront();
     });
 
     connect(&m_oauthService, &OAuthService::loginFailed, this, [this](const QString &errorMsg) {
@@ -124,6 +125,7 @@ void AppViewModel::handleUriScheme(const QString &uri) {
 
     if (!accessToken.isEmpty()) {
         m_oauthService.fetchUserEmail(accessToken, refreshToken);
+    bringWindowToFront();
     } else if (!code.isEmpty()) {
         m_oauthService.exchangeAuthorizationCode(code);
     }
@@ -246,3 +248,32 @@ void AppViewModel::logout() {
     emit currentViewChanged();
     emit activeUserChanged();
 }
+
+#ifdef Q_OS_WIN
+#include <windows.h>
+static void forceForegroundWindow(HWND hwnd) {
+    if (!hwnd) return;
+    DWORD currentThreadId = GetCurrentThreadId();
+    DWORD foregroundThreadId = GetWindowThreadProcessId(GetForegroundWindow(), NULL);
+    if (currentThreadId != foregroundThreadId) {
+        AttachThreadInput(currentThreadId, foregroundThreadId, TRUE);
+        SetForegroundWindow(hwnd);
+        SetFocus(hwnd);
+        AttachThreadInput(currentThreadId, foregroundThreadId, FALSE);
+    } else {
+        SetForegroundWindow(hwnd);
+        SetFocus(hwnd);
+    }
+    ShowWindow(hwnd, SW_RESTORE);
+    ShowWindow(hwnd, SW_SHOW);
+}
+
+void AppViewModel::bringWindowToFront() {
+    HWND hwnd = FindWindowW(NULL, L"SDC YAJB - Yayasan Asyuhada Jaya Bekasi");
+    if (hwnd) {
+        forceForegroundWindow(hwnd);
+    }
+}
+#else
+void AppViewModel::bringWindowToFront() {}
+#endif

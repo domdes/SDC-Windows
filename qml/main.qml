@@ -43,9 +43,9 @@ Window {
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.bottom: parent.bottom
-        height: mainWindow.isLogPanelOpen ? 240 : 34
+        height: mainWindow.isLogPanelOpen ? 240 : 0
         color: "#0F172A"
-        visible: appViewModel.currentView !== "SplashView"
+        visible: mainWindow.isLogPanelOpen
         border.color: "#334155"
         border.width: 1
         clip: true

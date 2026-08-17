@@ -249,6 +249,7 @@ Item {
 
                 // Server Log Toggle Button (📋)
                 Rectangle {
+                    visible: false
                     width: 32
                     height: 32
                     radius: 16

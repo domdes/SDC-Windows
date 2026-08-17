@@ -41,6 +41,7 @@ public:
     Q_INVOKABLE void connectProfile(const QString &host, int port);
     Q_INVOKABLE void disconnectAndReturnToProfiles();
     Q_INVOKABLE void logout();
+    Q_INVOKABLE void bringWindowToFront();
 
 signals:
     void currentViewChanged();
