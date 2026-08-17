@@ -29,12 +29,24 @@ OAuthService::~OAuthService() {
 void OAuthService::registerWindowsProtocol() {
 #ifdef Q_OS_WIN
     QString appPath = QDir::toNativeSeparators(QCoreApplication::applicationFilePath());
-    QSettings registry("HKEY_CURRENT_USER\\Software\\Classes\\sdcyajb", QSettings::NativeFormat);
-    registry.setValue(".", "URL:SDC YAJB Protocol");
-    registry.setValue("URL Protocol", "");
     
-    QSettings shell("HKEY_CURRENT_USER\\Software\\Classes\\sdcyajb\\shell\\open\\command", QSettings::NativeFormat);
-    shell.setValue(".", QString("\"%1\" \"%2\"").arg(appPath, "%1"));
+    // Register sdcyajb protocol
+    {
+        QSettings registry("HKEY_CURRENT_USER\\Software\\Classes\\sdcyajb", QSettings::NativeFormat);
+        registry.setValue(".", "URL:SDC YAJB Protocol");
+        registry.setValue("URL Protocol", "");
+        QSettings shell("HKEY_CURRENT_USER\\Software\\Classes\\sdcyajb\\shell\\open\\command", QSettings::NativeFormat);
+        shell.setValue(".", QString("\"%1\" \"%2\"").arg(appPath, "%1"));
+    }
+
+    // Register org.asyuhada.portal protocol
+    {
+        QSettings registry("HKEY_CURRENT_USER\\Software\\Classes\\org.asyuhada.portal", QSettings::NativeFormat);
+        registry.setValue(".", "URL:Portal Asyuhada Protocol");
+        registry.setValue("URL Protocol", "");
+        QSettings shell("HKEY_CURRENT_USER\\Software\\Classes\\org.asyuhada.portal\\shell\\open\\command", QSettings::NativeFormat);
+        shell.setValue(".", QString("\"%1\" \"%2\"").arg(appPath, "%1"));
+    }
 #endif
 }
 
@@ -57,24 +69,20 @@ void OAuthService::startGoogleLogin() {
         m_tcpServer->close();
     }
 
-    // Start Local TCP Server on port 54321 (or fallback free port)
-    if (!m_tcpServer->listen(QHostAddress::LocalHost, m_localPort)) {
+    // Start Local TCP Server on fixed port 54321
+    if (!m_tcpServer->listen(QHostAddress::LocalHost, 54321)) {
+        qWarning() << "[OAUTH SERVER] Port 54321 busy, listening on any port:" << m_tcpServer->errorString();
         m_tcpServer->listen(QHostAddress::LocalHost, 0);
-        m_localPort = m_tcpServer->serverPort();
     }
+    m_localPort = m_tcpServer->serverPort();
 
-    m_codeVerifier = generateCodeVerifier();
-    QString codeChallenge = generateCodeChallenge(m_codeVerifier);
-
-    QString redirectUri = QString("http://localhost:%1/callback").arg(m_localPort);
-
+    // Use official registered Supabase redirect URL matching Portal Android
+    QString redirectUrl = "https://www.asyuhada-jaya.org/auth/portal-callback";
     QUrl authUrl("https://faythocihlyzmzrnwwks.supabase.co/auth/v1/authorize");
     QUrlQuery query;
     query.addQueryItem("provider", "google");
-    query.addQueryItem("redirect_to", redirectUri);
-    query.addQueryItem("code_challenge", codeChallenge);
-    query.addQueryItem("code_challenge_method", "S256");
-    query.addQueryItem("response_type", "code");
+    query.addQueryItem("redirect_to", redirectUrl);
+    query.addQueryItem("prompt", "select_account");
     authUrl.setQuery(query);
 
     qDebug() << "[OAUTH START] Opening browser for Google login:" << authUrl.toString();
@@ -119,38 +127,22 @@ void OAuthService::onNewTcpConnection() {
             refreshToken = requestStr.mid(tokIdx + 14, endIdx - (tokIdx + 14));
         }
 
-        // Return HTML response that captures hash fragment (#access_token=...) if present
+        // Return CORS enabled HTTP 200 response
         QString htmlResponse =
             "HTTP/1.1 200 OK\r\n"
-            "Content-Type: text/html; charset=utf-8\r\n"
+            "Access-Control-Allow-Origin: *\r\n"
+            "Access-Control-Allow-Methods: GET, POST, OPTIONS\r\n"
+            "Access-Control-Allow-Headers: *\r\n"
+            "Content-Type: application/json; charset=utf-8\r\n"
             "Connection: close\r\n\r\n"
-            "<!DOCTYPE html><html><head><title>SDC YAJB - Login Google</title>"
-            "<style>"
-            "body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#0F172A;color:#FFFFFF;display:flex;align-items:center;justify-content:center;height:100vh;margin:0;}"
-            ".card{background:#1E293B;padding:40px 48px;border-radius:24px;box-shadow:0 20px 25px -5px rgba(0,0,0,0.5);text-align:center;max-width:440px;border:1px solid #334155;}"
-            "h1{color:#10B981;font-size:22px;margin:0 0 12px 0;}"
-            "p{color:#94A3B8;font-size:15px;line-height:1.5;margin:0 0 20px 0;}"
-            ".badge{display:inline-block;padding:8px 16px;background:#065F46;color:#6EE7B7;border-radius:12px;font-size:13px;font-weight:600;}"
-            "</style></head>"
-            "<body><div class='card'>"
-            "<h1>🌿 Login Google Berhasil</h1>"
-            "<p>Autentikasi akun Google Anda telah terverifikasi.<br>Anda dapat menutup tab browser ini dan kembali ke aplikasi <b>SDC YAJB Desktop</b>.</p>"
-            "<div class='badge'>✓ Terhubung ke SDC Desktop</div>"
-            "</div>"
-            "<script>"
-            "if(window.location.hash && window.location.hash.length > 1){"
-            "  var hash = window.location.hash.substring(1);"
-            "  fetch('/submit_token?' + hash);"
-            "}"
-            "setTimeout(function(){ window.close(); }, 2500);"
-            "</script></body></html>";
+            "{\"status\":\"success\"}";
 
         socket->write(htmlResponse.toUtf8());
         socket->flush();
         socket->disconnectFromHost();
 
         if (!accessToken.isEmpty()) {
-            qDebug() << "[OAUTH TOKEN RECEIVED] Directly fetching user profile...";
+            qDebug() << "[OAUTH TOKEN RECEIVED FROM LOCAL SERVER] Fetching user profile...";
             fetchUserEmail(accessToken, refreshToken);
         } else if (!authCode.isEmpty()) {
             qDebug() << "[OAUTH CALLBACK CODE RECEIVED]:" << authCode;

@@ -114,15 +114,18 @@ void AppViewModel::startGoogleLogin() {
 }
 
 void AppViewModel::handleUriScheme(const QString &uri) {
+    qDebug() << "[APP VIEWMODEL] Handling URI scheme:" << uri;
     QUrl url(uri);
-    if (url.scheme() == "sdcyajb" && url.host() == "oauth") {
-        QUrlQuery query(url);
-        QString code = query.queryItemValue("code");
-        if (!code.isEmpty()) {
-            m_oauthService.exchangeAuthorizationCode(code);
-        } else {
-            m_oauthService.exchangeAuthorizationCode("simulated_code");
-        }
+    QUrlQuery query(url);
+    
+    QString accessToken = query.queryItemValue("access_token");
+    QString refreshToken = query.queryItemValue("refresh_token");
+    QString code = query.queryItemValue("code");
+
+    if (!accessToken.isEmpty()) {
+        m_oauthService.fetchUserEmail(accessToken, refreshToken);
+    } else if (!code.isEmpty()) {
+        m_oauthService.exchangeAuthorizationCode(code);
     }
 }
 

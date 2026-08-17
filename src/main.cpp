@@ -46,7 +46,7 @@ int main(int argc, char *argv[]) {
 
     if (argc > 1) {
         QString arg = QString::fromLocal8Bit(argv[1]);
-        if (arg.startsWith("sdcyajb://")) {
+        if (arg.startsWith("sdcyajb://") || arg.startsWith("org.asyuhada.portal://")) {
             appViewModel.handleUriScheme(arg);
         }
     }
