@@ -255,23 +255,23 @@ void MumbleClientEngine::onSocketError(QAbstractSocket::SocketError error) {
 
 void MumbleClientEngine::processControlPacket(quint16 type, const QByteArray &payload) {
     switch (type) {
-    case 5: // Reject
+    case 4: // Reject
         parseReject(payload);
+        break;
+    case 5: // ServerSync
+        parseServerSync(payload);
+        break;
+    case 6: // ChannelRemove
+        parseChannelRemove(payload);
         break;
     case 7: // ChannelState
         parseChannelState(payload);
         break;
-    case 8: // ChannelRemove
-        parseChannelRemove(payload);
+    case 8: // UserRemove
+        parseUserRemove(payload);
         break;
     case 9: // UserState
         parseUserState(payload);
-        break;
-    case 10: // UserRemove
-        parseUserRemove(payload);
-        break;
-    case 11: // ServerSync
-        parseServerSync(payload);
         break;
     case 12: // PermissionDenied
         parsePermissionDenied(payload);
