@@ -21,8 +21,13 @@ struct MumbleUser {
     int session = 0;
     int channelId = 0;
     QString name;
-    bool isMuted = false;
-    bool isDeafened = false;
+    int userId = 0;
+    bool isRegistered = false;
+    bool isServerMuted = false;
+    bool isServerDeafened = false;
+    bool isSuppressed = false;
+    bool isSelfMuted = false;
+    bool isSelfDeafened = false;
     bool isTalking = false;
     bool isSelf = false;
 };
@@ -45,6 +50,8 @@ public:
     void moveToChannel(int targetChannelId);
     void setChannelExpanded(int channelId, bool expanded);
     void setPttActive(bool active);
+    void setSelfMuteDeafState(bool selfMute, bool selfDeaf);
+    void setAdminMuteDeafState(int session, bool mute, bool deaf);
     void setAccessTokens(const QStringList &tokens) { m_accessTokens = tokens; }
     void setAutoJoinChannelName(const QString &chanName) { m_autoJoinChannelName = chanName; }
     void sendAccessTokens();

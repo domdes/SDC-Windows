@@ -443,9 +443,19 @@ void MumbleClientEngine::parseUserState(const QByteArray &payload) {
     int session = 0;
     int channelId = -1;
     QString name;
+    int userId = 0;
     bool hasChannel = false;
     bool hasName = false;
+    bool hasUserId = false;
+    bool hasServerMute = false;
+    bool isServerMute = false;
+    bool hasServerDeaf = false;
+    bool isServerDeaf = false;
+    bool hasSuppress = false;
+    bool isSuppress = false;
+    bool hasSelfMute = false;
     bool isSelfMute = false;
+    bool hasSelfDeaf = false;
     bool isSelfDeaf = false;
 
     while (reader.hasMore()) {
@@ -456,9 +466,13 @@ void MumbleClientEngine::parseUserState(const QByteArray &payload) {
         if (wireType == 0) {
             quint64 val = reader.readVarint();
             if (fieldNum == 1) session = static_cast<int>(val);
+            else if (fieldNum == 4) { userId = static_cast<int>(val); hasUserId = true; }
             else if (fieldNum == 5) { channelId = static_cast<int>(val); hasChannel = true; }
-            else if (fieldNum == 7) isSelfMute = (val != 0);
-            else if (fieldNum == 8) isSelfDeaf = (val != 0);
+            else if (fieldNum == 6) { isServerMute = (val != 0); hasServerMute = true; }
+            else if (fieldNum == 7) { isServerDeaf = (val != 0); hasServerDeaf = true; }
+            else if (fieldNum == 8) { isSuppress = (val != 0); hasSuppress = true; }
+            else if (fieldNum == 9) { isSelfMute = (val != 0); hasSelfMute = true; }
+            else if (fieldNum == 10) { isSelfDeaf = (val != 0); hasSelfDeaf = true; }
         } else if (wireType == 2) {
             int len = static_cast<int>(reader.readVarint());
             if (fieldNum == 3) { name = reader.readString(len); hasName = true; }
@@ -473,16 +487,29 @@ void MumbleClientEngine::parseUserState(const QByteArray &payload) {
             u.session = session;
             u.channelId = hasChannel ? channelId : 0;
             u.name = hasName ? name : QString("User %1").arg(session);
-            u.isMuted = isSelfMute;
-            u.isDeafened = isSelfDeaf;
+            u.userId = hasUserId ? userId : 0;
+            u.isRegistered = (u.userId > 0);
+            u.isServerMuted = hasServerMute ? isServerMute : false;
+            u.isServerDeafened = hasServerDeaf ? isServerDeaf : false;
+            u.isSuppressed = hasSuppress ? isSuppress : false;
+            u.isSelfMuted = hasSelfMute ? isSelfMute : false;
+            u.isSelfDeafened = hasSelfDeaf ? isSelfDeaf : false;
             u.isSelf = (session == m_mySessionId);
             m_users[session] = u;
         } else {
-            if (hasChannel) m_users[session].channelId = channelId;
-            if (hasName) m_users[session].name = name;
-            m_users[session].isMuted = isSelfMute;
-            m_users[session].isDeafened = isSelfDeaf;
-            if (session == m_mySessionId) m_users[session].isSelf = true;
+            MumbleUser &u = m_users[session];
+            if (hasChannel) u.channelId = channelId;
+            if (hasName) u.name = name;
+            if (hasUserId) {
+                u.userId = userId;
+                u.isRegistered = (userId > 0);
+            }
+            if (hasServerMute) u.isServerMuted = isServerMute;
+            if (hasServerDeaf) u.isServerDeafened = isServerDeaf;
+            if (hasSuppress) u.isSuppressed = isSuppress;
+            if (hasSelfMute) u.isSelfMuted = isSelfMute;
+            if (hasSelfDeaf) u.isSelfDeafened = isSelfDeaf;
+            if (session == m_mySessionId) u.isSelf = true;
         }
 
         if (session == m_mySessionId && hasChannel) {
@@ -813,3 +840,24 @@ void MumbleClientEngine::sendControlPacket(quint16 type, const QByteArray &paylo
     packet.append(payload);
     m_socket->write(packet);
 }
+
+void MumbleClientEngine::setSelfMuteDeafState(bool selfMute, bool selfDeaf) {
+    if (!m_isConnected) return;
+    MumbleBufferWriter writer;
+    if (m_mySessionId >= 0) {
+        writer.writeVarintField(1, static_cast<quint64>(m_mySessionId));
+    }
+    writer.writeVarintField(9, selfMute ? 1 : 0);
+    writer.writeVarintField(10, selfDeaf ? 1 : 0);
+    sendControlPacket(9, writer.toByteArray());
+}
+
+void MumbleClientEngine::setAdminMuteDeafState(int session, bool mute, bool deaf) {
+    if (!m_isConnected || session <= 0) return;
+    MumbleBufferWriter writer;
+    writer.writeVarintField(1, static_cast<quint64>(session));
+    writer.writeVarintField(6, mute ? 1 : 0);
+    writer.writeVarintField(7, deaf ? 1 : 0);
+    sendControlPacket(9, writer.toByteArray());
+}
+

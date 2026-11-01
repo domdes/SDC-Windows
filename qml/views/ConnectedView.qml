@@ -247,6 +247,50 @@ Item {
                     Layout.fillWidth: true
                 }
 
+                // Mic / Self-Mute Toggle Button
+                Rectangle {
+                    width: 32
+                    height: 32
+                    radius: 16
+                    color: voiceViewModel.isSelfMuted ? "#DC2626" : (micHover.containsMouse ? "#065F46" : "transparent")
+
+                    Text {
+                        text: voiceViewModel.isSelfMuted ? "🔇" : "🎙️"
+                        font.pixelSize: 15
+                        anchors.centerIn: parent
+                    }
+
+                    MouseArea {
+                        id: micHover
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: voiceViewModel.toggleSelfMute()
+                    }
+                }
+
+                // Headset / Self-Deafen Toggle Button
+                Rectangle {
+                    width: 32
+                    height: 32
+                    radius: 16
+                    color: voiceViewModel.isSelfDeafened ? "#DC2626" : (deafHover.containsMouse ? "#065F46" : "transparent")
+
+                    Text {
+                        text: "🎧"
+                        font.pixelSize: 15
+                        anchors.centerIn: parent
+                    }
+
+                    MouseArea {
+                        id: deafHover
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: voiceViewModel.toggleSelfDeaf()
+                    }
+                }
+
                 // Server Log Toggle Button (📋)
                 Rectangle {
                     visible: false
@@ -369,25 +413,26 @@ Item {
 
         // 4. Sticky Bottom PTT Button (Hidden for Murid)
         Rectangle {
+            id: pttButtonRect
             Layout.fillWidth: true
             height: 55
-            color: voiceViewModel.isPttActive ? "#DC2626" : (voiceViewModel.isMuted ? "#9CA3AF" : "#059669")
+            readonly property bool isMicDisabled: voiceViewModel.isMuted || voiceViewModel.isDeafened || voiceViewModel.isSelfMuted || voiceViewModel.isServerMuted || voiceViewModel.isSuppressed || voiceViewModel.isSelfDeafened
+            color: isMicDisabled ? "#64748B" : (voiceViewModel.isPttActive ? "#DC2626" : "#059669")
             visible: voiceViewModel.userRole !== "murid"
-            opacity: (voiceViewModel.isMuted || voiceViewModel.isLocalMuted) ? 0.6 : 1.0
 
             MouseArea {
                 anchors.fill: parent
-                enabled: !(voiceViewModel.isMuted || voiceViewModel.isLocalMuted)
-                cursorShape: Qt.PointingHandCursor
+                enabled: !pttButtonRect.isMicDisabled
+                cursorShape: pttButtonRect.isMicDisabled ? Qt.ArrowCursor : Qt.PointingHandCursor
                 onClicked: voiceViewModel.togglePtt()
             }
 
             Text {
                 anchors.centerIn: parent
-                text: voiceViewModel.isPttActive ? "TEKAN UNTUK BERHENTI" : ((voiceViewModel.isMuted || voiceViewModel.isLocalMuted) ? "TERBUNGKAP (MUTED)" : "TEKAN UNTUK BERBICARA")
+                text: (voiceViewModel.isPttActive && !pttButtonRect.isMicDisabled) ? "TEKAN UNTUK BERHENTI" : "TEKAN UNTUK BERBICARA"
                 font.pixelSize: 16
                 font.bold: true
-                color: "#FFFFFF"
+                color: pttButtonRect.isMicDisabled ? "#CBD5E1" : "#FFFFFF"
             }
         }
     }

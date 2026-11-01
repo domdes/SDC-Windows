@@ -17,8 +17,13 @@ class VoiceViewModel : public QObject {
     Q_PROPERTY(QString userRole READ userRole WRITE setUserRole NOTIFY roleChanged)
     Q_PROPERTY(QString accessTokens READ accessTokens WRITE updateAccessTokens NOTIFY accessTokensChanged)
     Q_PROPERTY(bool isMuted READ isMuted NOTIFY stateUpdated)
-    Q_PROPERTY(bool isLocalMuted READ isLocalMuted NOTIFY stateUpdated)
     Q_PROPERTY(bool isDeafened READ isDeafened NOTIFY stateUpdated)
+    Q_PROPERTY(bool isSelfMuted READ isSelfMuted NOTIFY stateUpdated)
+    Q_PROPERTY(bool isSelfDeafened READ isSelfDeafened NOTIFY stateUpdated)
+    Q_PROPERTY(bool isServerMuted READ isServerMuted NOTIFY stateUpdated)
+    Q_PROPERTY(bool isSuppressed READ isSuppressed NOTIFY stateUpdated)
+    Q_PROPERTY(bool isRegistered READ isRegistered NOTIFY stateUpdated)
+    Q_PROPERTY(bool isLocalMuted READ isLocalMuted NOTIFY stateUpdated)
     Q_PROPERTY(bool isLocalDeafened READ isLocalDeafened NOTIFY stateUpdated)
 
 public:
@@ -34,6 +39,11 @@ public:
     QString accessTokens() const { return m_accessTokensStr; }
     void setUserRole(const QString &role);
 
+    bool isSelfMuted() const;
+    bool isSelfDeafened() const;
+    bool isServerMuted() const;
+    bool isSuppressed() const;
+    bool isRegistered() const;
     bool isMuted() const;
     bool isLocalMuted() const { return m_isLocalMuted; }
     bool isDeafened() const;
@@ -45,6 +55,9 @@ public:
     Q_INVOKABLE void toggleChannelExpanded(int channelId);
     Q_INVOKABLE void setPttActive(bool active);
     Q_INVOKABLE void togglePtt();
+    Q_INVOKABLE void toggleSelfMute();
+    Q_INVOKABLE void toggleSelfDeaf();
+    Q_INVOKABLE void setAdminUserMuteDeaf(int session, bool mute, bool deaf);
     Q_INVOKABLE void toggleLocalMute();
     Q_INVOKABLE void toggleLocalDeafen();
     Q_INVOKABLE void renameChannel(int channelId, const QString &newName);

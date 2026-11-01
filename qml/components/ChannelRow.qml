@@ -170,39 +170,89 @@ Column {
                 height: 30
                 color: modelData.isSelf ? "#12047857" : "transparent"
 
-                Row {
-                    anchors.left: parent.left
+                Item {
+                    anchors.fill: parent
                     anchors.leftMargin: (channelRowRoot.depth * 20 + 16) + 24
-                    anchors.right: parent.right
                     anchors.rightMargin: 16
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 8
 
-                    // User Mic State Icon
-                    Text {
-                        text: modelData.isMuted ? "🔇" : (modelData.isTalking ? "🎙️" : "🎙️")
-                        font.pixelSize: 14
-                        color: modelData.isMuted ? "#9CA3AF" : (modelData.isTalking ? "#DC2626" : "#6B7280")
+                    // Left Side: Avatar and Name
+                    Row {
+                        anchors.left: parent.left
+                        anchors.right: statusBadgeRow.left
+                        anchors.rightMargin: 8
                         anchors.verticalCenter: parent.verticalCenter
+                        spacing: 8
+
+                        // User Avatar (Green when idle, Blue with sound waves when talking)
+                        StatusAvatarIcon {
+                            isTalking: !!modelData.isTalking
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        // User Name
+                        Text {
+                            text: modelData.name
+                            font.pixelSize: 13
+                            font.bold: modelData.isSelf || modelData.isTalking
+                            font.weight: modelData.isSelf ? Font.ExtraBold : (modelData.isTalking ? Font.Bold : Font.Normal)
+                            color: modelData.isTalking ? "#0284C7" : (modelData.isSelf ? "#047857" : "#1F2937")
+                            elide: Text.ElideRight
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: Math.min(implicitWidth, parent.width - 24)
+                        }
                     }
 
-                    // User Deafen State Icon (if deafened)
-                    Text {
-                        text: "🎧"
-                        font.pixelSize: 13
-                        color: "#DC2626"
-                        visible: modelData.isDeafened
+                    // Right Side: Multiple Status Badges matching Mumble official client
+                    Row {
+                        id: statusBadgeRow
+                        anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
-                    }
+                        spacing: 4
 
-                    // User Name
-                    Text {
-                        text: modelData.name
-                        font.pixelSize: 13
-                        font.bold: modelData.isSelf || modelData.isTalking
-                        font.weight: modelData.isSelf ? Font.ExtraBold : (modelData.isTalking ? Font.Bold : Font.Normal)
-                        color: modelData.isTalking ? "#DC2626" : (modelData.isSelf ? "#047857" : "#1F2937")
-                        anchors.verticalCenter: parent.verticalCenter
+                        // 1. Muted by Admin (Blue Mic Slash)
+                        StatusMicIcon {
+                            visible: !!modelData.isServerMuted
+                            iconColor: "#0284C7"
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        // 2. Muted by ACL (Green Mic Slash)
+                        StatusMicIcon {
+                            visible: !!modelData.isSuppressed
+                            iconColor: "#10B981"
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        // 3. Self Muted (Red Mic Slash)
+                        StatusMicIcon {
+                            visible: !!modelData.isSelfMuted
+                            iconColor: "#EF4444"
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        // 4. Deafen by Admin (Blue Speaker Slash)
+                        StatusSpeakerIcon {
+                            visible: !!modelData.isServerDeafened
+                            iconColor: "#0284C7"
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        // 5. Self Deafen (Red Speaker Slash)
+                        StatusSpeakerIcon {
+                            visible: !!modelData.isSelfDeafened
+                            iconColor: "#EF4444"
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        // 6. Registered User (Gold Checkmark)
+                        Text {
+                            text: "✓"
+                            font.pixelSize: 13
+                            font.bold: true
+                            color: "#EAB308"
+                            visible: !!modelData.isRegistered
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
                     }
                 }
             }
@@ -219,6 +269,116 @@ Column {
                         "nodeData": modelData,
                         "depth": channelRowRoot.depth + 1
                     })
+                }
+            }
+        }
+    }
+
+    // Inline Vector Icon Components matching Mumble official client
+    component StatusMicIcon: Item {
+        width: 14
+        height: 14
+        property color iconColor: "#DC2626"
+        Canvas {
+            anchors.fill: parent
+            onPaint: {
+                var ctx = getContext("2d");
+                ctx.reset();
+                ctx.strokeStyle = iconColor;
+                ctx.fillStyle = iconColor;
+                ctx.lineWidth = 1.3;
+                ctx.lineCap = "round";
+
+                ctx.beginPath();
+                ctx.rect(5, 2, 4, 5);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.arc(7, 6, 3.8, 0, Math.PI, false);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(7, 9.8);
+                ctx.lineTo(7, 12);
+                ctx.moveTo(4.5, 12);
+                ctx.lineTo(9.5, 12);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(2, 2);
+                ctx.lineTo(12, 12);
+                ctx.stroke();
+            }
+        }
+    }
+
+    component StatusSpeakerIcon: Item {
+        width: 14
+        height: 14
+        property color iconColor: "#DC2626"
+        Canvas {
+            anchors.fill: parent
+            onPaint: {
+                var ctx = getContext("2d");
+                ctx.reset();
+                ctx.strokeStyle = iconColor;
+                ctx.fillStyle = iconColor;
+                ctx.lineWidth = 1.3;
+                ctx.lineCap = "round";
+
+                ctx.beginPath();
+                ctx.rect(2, 4.5, 2.5, 5);
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(4.5, 4.5);
+                ctx.lineTo(8, 2);
+                ctx.lineTo(8, 12);
+                ctx.lineTo(4.5, 9.5);
+                ctx.closePath();
+                ctx.stroke();
+
+                ctx.beginPath();
+                ctx.moveTo(2, 2);
+                ctx.lineTo(12, 12);
+                ctx.stroke();
+            }
+        }
+    }
+
+    component StatusAvatarIcon: Item {
+        width: 16
+        height: 16
+        property bool isTalking: false
+        Canvas {
+            anchors.fill: parent
+            onPaint: {
+                var ctx = getContext("2d");
+                ctx.reset();
+                var col = isTalking ? "#0284C7" : "#10B981";
+                ctx.strokeStyle = col;
+                ctx.fillStyle = col;
+                ctx.lineWidth = 1.4;
+                ctx.lineCap = "round";
+
+                // Head
+                ctx.beginPath();
+                ctx.arc(8, 5, 3.2, 0, 2 * Math.PI);
+                ctx.fill();
+
+                // Shoulders / body
+                ctx.beginPath();
+                ctx.arc(8, 15, 5.5, Math.PI * 1.15, Math.PI * 1.85);
+                ctx.stroke();
+
+                if (isTalking) {
+                    ctx.beginPath();
+                    ctx.arc(8, 5, 5.5, -Math.PI * 0.4, Math.PI * 0.4);
+                    ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.arc(8, 5, 5.5, Math.PI * 0.6, Math.PI * 1.4);
+                    ctx.stroke();
                 }
             }
         }
