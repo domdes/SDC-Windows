@@ -341,3 +341,14 @@ void VoiceViewModel::clearDebugLogs() {
       }
       return tree;
     }
+
+void VoiceViewModel::setSelectedUserSession(int session) {
+  if (m_selectedUserSession != session) {
+    m_selectedUserSession = session;
+    emit selectedUserSessionChanged();
+  }
+}
+
+void VoiceViewModel::toggleSelectUser(int session) {
+  setSelectedUserSession(m_selectedUserSession == session ? -1 : session);
+}

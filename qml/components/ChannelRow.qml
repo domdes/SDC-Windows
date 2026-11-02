@@ -166,9 +166,37 @@ Column {
         Repeater {
             model: nodeData ? nodeData.users : []
             Rectangle {
+                id: userRowRect
                 width: parent.width
                 height: 30
-                color: modelData.isSelf ? "#12047857" : "transparent"
+                property bool isUserSelected: voiceViewModel && voiceViewModel.selectedUserSession === modelData.session
+                property bool shouldMarquee: isUserSelected || (!!modelData.isTalking)
+                color: isUserSelected ? "#260284C7" : (modelData.isSelf ? "#12047857" : (userHoverArea.containsMouse ? "#0D000000" : "transparent"))
+                radius: 4
+
+                MouseArea {
+                    id: userHoverArea
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    onClicked: (mouse) => {
+                        if (mouse.button === Qt.RightButton) {
+                            userContextMenu.popup()
+                        } else {
+                            if (voiceViewModel) {
+                                voiceViewModel.toggleSelectUser(modelData.session)
+                            }
+                        }
+                    }
+                    onDoubleClicked: {
+                        userContextMenu.popup()
+                    }
+                }
+
+                ToolTip.visible: userHoverArea.containsMouse
+                ToolTip.delay: 400
+                ToolTip.text: modelData.name + (modelData.isSelf ? " (Anda)" : "")
 
                 Item {
                     anchors.fill: parent
@@ -183,26 +211,47 @@ Column {
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 8
 
-                        // User Avatar (Green when idle, Blue with sound waves when talking)
+                        // User Avatar (Green when idle, Blue with sound waves when talking) - Fixed
                         StatusAvatarIcon {
                             isTalking: !!modelData.isTalking
                             anchors.verticalCenter: parent.verticalCenter
                         }
 
-                        // User Name
-                        Text {
-                            text: modelData.name
-                            font.pixelSize: 13
-                            font.bold: modelData.isSelf || modelData.isTalking
-                            font.weight: modelData.isSelf ? Font.ExtraBold : (modelData.isTalking ? Font.Bold : Font.Normal)
-                            color: modelData.isTalking ? "#0284C7" : (modelData.isSelf ? "#047857" : "#1F2937")
-                            elide: Text.ElideRight
+                        // User Name (Marquee inside clipped viewport when selected/talking, otherwise Elide)
+                        Item {
+                            id: nameViewport
+                            height: parent.height
+                            width: Math.min(userNameText.implicitWidth, parent.width - 24)
+                            clip: true
                             anchors.verticalCenter: parent.verticalCenter
-                            width: Math.min(implicitWidth, parent.width - 24)
+
+                            Text {
+                                id: userNameText
+                                text: modelData.name
+                                font.pixelSize: 13
+                                font.bold: modelData.isSelf || modelData.isTalking || userRowRect.isUserSelected
+                                font.weight: (modelData.isSelf || userRowRect.isUserSelected) ? Font.ExtraBold : (modelData.isTalking ? Font.Bold : Font.Normal)
+                                color: modelData.isTalking ? "#0284C7" : (modelData.isSelf ? "#047857" : "#1F2937")
+                                anchors.verticalCenter: parent.verticalCenter
+                                elide: userRowRect.shouldMarquee ? Text.ElideNone : Text.ElideRight
+
+                                NumberAnimation on x {
+                                    id: marqueeAnim
+                                    running: userRowRect.shouldMarquee && userNameText.implicitWidth > nameViewport.width
+                                    from: 0
+                                    to: -(userNameText.implicitWidth - nameViewport.width + 10)
+                                    duration: Math.max(2000, (userNameText.implicitWidth - nameViewport.width) * 35)
+                                    loops: Animation.Infinite
+                                    alwaysRunToEnd: false
+                                    onRunningChanged: {
+                                        if (!running) userNameText.x = 0
+                                    }
+                                }
+                            }
                         }
                     }
 
-                    // Right Side: Multiple Status Badges matching Mumble official client
+                    // Right Side: Multiple Status Badges matching Mumble official client - Fixed
                     Row {
                         id: statusBadgeRow
                         anchors.right: parent.right
@@ -252,6 +301,59 @@ Column {
                             color: "#EAB308"
                             visible: !!modelData.isRegistered
                             anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        // Options 3-dots button when selected
+                        Rectangle {
+                            visible: userRowRect.isUserSelected && !modelData.isSelf
+                            width: 20
+                            height: 20
+                            radius: 10
+                            color: menuBtnHover.containsMouse ? "#E0F2FE" : "transparent"
+                            anchors.verticalCenter: parent.verticalCenter
+
+                            Text {
+                                text: "⋮"
+                                font.pixelSize: 15
+                                font.bold: true
+                                color: "#0284C7"
+                                anchors.centerIn: parent
+                            }
+
+                            MouseArea {
+                                id: menuBtnHover
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: userContextMenu.popup()
+                            }
+                        }
+                    }
+                }
+
+                // Context Menu for User Options (Mute / Deafen Admin)
+                Menu {
+                    id: userContextMenu
+                    title: modelData.name
+
+                    MenuItem {
+                        text: modelData.name
+                        enabled: false
+                        font.bold: true
+                    }
+                    MenuSeparator {}
+                    MenuItem {
+                        text: modelData.isServerMuted ? "Unmute Admin" : "Mute Admin"
+                        visible: voiceViewModel && voiceViewModel.userRole === "super_admin"
+                        onTriggered: {
+                            voiceViewModel.setAdminUserMuteDeaf(modelData.session, !modelData.isServerMuted, modelData.isServerDeafened)
+                        }
+                    }
+                    MenuItem {
+                        text: modelData.isServerDeafened ? "Undeafen Admin" : "Deafen Admin"
+                        visible: voiceViewModel && voiceViewModel.userRole === "super_admin"
+                        onTriggered: {
+                            voiceViewModel.setAdminUserMuteDeaf(modelData.session, modelData.isServerMuted, !modelData.isServerDeafened)
                         }
                     }
                 }

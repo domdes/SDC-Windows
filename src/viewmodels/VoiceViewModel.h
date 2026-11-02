@@ -25,6 +25,7 @@ class VoiceViewModel : public QObject {
     Q_PROPERTY(bool isRegistered READ isRegistered NOTIFY stateUpdated)
     Q_PROPERTY(bool isLocalMuted READ isLocalMuted NOTIFY stateUpdated)
     Q_PROPERTY(bool isLocalDeafened READ isLocalDeafened NOTIFY stateUpdated)
+    Q_PROPERTY(int selectedUserSession READ selectedUserSession WRITE setSelectedUserSession NOTIFY selectedUserSessionChanged)
 
 public:
     explicit VoiceViewModel(MumbleClientEngine *engine, QObject *parent = nullptr);
@@ -48,6 +49,9 @@ public:
     bool isLocalMuted() const { return m_isLocalMuted; }
     bool isDeafened() const;
     bool isLocalDeafened() const { return m_isLocalDeafened; }
+    int selectedUserSession() const { return m_selectedUserSession; }
+    Q_INVOKABLE void setSelectedUserSession(int session);
+    Q_INVOKABLE void toggleSelectUser(int session);
 
     Q_INVOKABLE void connectToServer(const QString &host, int port, const QString &username, const QString &password = "4622bekasiselatan");
     Q_INVOKABLE void disconnect();
@@ -68,6 +72,7 @@ signals:
     void stateUpdated();
     void isConnectingChanged();
     void pttStateChanged();
+    void selectedUserSessionChanged();
     void statusTextChanged();
     void debugLogsChanged();
     void roleChanged();
@@ -89,6 +94,7 @@ private:
     bool m_isPttActive = false;
     bool m_isLocalMuted = false;
     bool m_isLocalDeafened = false;
+    int m_selectedUserSession = -1;
     QString m_statusText = "Terputus";
     QString m_debugLogs;
     QString m_userRole = "guru";
